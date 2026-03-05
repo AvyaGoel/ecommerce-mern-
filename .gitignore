@@ -3,7 +3,10 @@ node_modules/
 .env.backup
 .env.local
 .env.example
+.env.*
 *.env
+backend/.env.example
+frontend/.env
 frontend/node_modules/
 frontend/build/
 *.log
