@@ -16,9 +16,14 @@ const HomePage = () => {
           productAPI.getAll({ limit: 8, sort: '-sold' }),
           productAPI.getCategories(),
         ]);
-        setFeatured(prodRes.data.products);
-        setCategories(catRes.data.categories);
-      } catch {}
+        // Safe checks before setting state
+        setFeatured(prodRes?.data?.products || []);
+        setCategories(catRes?.data?.categories || []);
+      } catch (err) {
+        console.error('HomePage load error:', err);
+        setFeatured([]);
+        setCategories([]);
+      }
       setLoading(false);
     };
     load();
@@ -32,9 +37,12 @@ const HomePage = () => {
         <div className="container" style={{ position: 'relative' }}>
           <div className="badge badge-default" style={{ marginBottom: '24px', display: 'inline-flex' }}>⚡ Premium MERN Store</div>
           <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(40px,7vw,80px)', fontWeight: 800, lineHeight: 1.05, marginBottom: '24px' }}>
-            Shop the Future<br /><span style={{ background: 'linear-gradient(135deg, #a78bfa, #7c3aed)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Today.</span>
+            Shop the Future<br />
+            <span style={{ background: 'linear-gradient(135deg, #a78bfa, #7c3aed)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Today.</span>
           </h1>
-          <p style={{ fontSize: '18px', color: 'var(--text-secondary)', maxWidth: '480px', margin: '0 auto 40px' }}>Discover premium products with secure payments, real-time tracking, and effortless returns.</p>
+          <p style={{ fontSize: '18px', color: 'var(--text-secondary)', maxWidth: '480px', margin: '0 auto 40px' }}>
+            Discover premium products with secure payments, real-time tracking, and effortless returns.
+          </p>
           <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', flexWrap: 'wrap' }}>
             <Link to="/products" className="btn btn-primary btn-lg">Browse Products →</Link>
             <Link to="/register" className="btn btn-secondary btn-lg">Get Started Free</Link>
@@ -57,13 +65,15 @@ const HomePage = () => {
       </section>
 
       {/* Categories */}
-      {categories.length > 0 && (
+      {Array.isArray(categories) && categories.length > 0 && (
         <section style={{ padding: '80px 0' }}>
           <div className="container">
             <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '32px', fontWeight: 700, marginBottom: '32px' }}>Shop by Category</h2>
             <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
               {categories.map((cat) => (
-                <Link key={cat} to={`/products?category=${encodeURIComponent(cat)}`}
+                <Link
+                  key={cat}
+                  to={`/products?category=${encodeURIComponent(cat)}`}
                   className="btn btn-secondary"
                   style={{ borderRadius: '24px' }}
                 >{cat}</Link>
@@ -80,9 +90,18 @@ const HomePage = () => {
             <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '32px', fontWeight: 700 }}>Best Sellers</h2>
             <Link to="/products" className="btn btn-ghost">View All →</Link>
           </div>
-          {loading ? <LoadingSpinner text="Loading products..." /> : (
+          {loading ? (
+            <LoadingSpinner text="Loading products..." />
+          ) : Array.isArray(featured) && featured.length > 0 ? (
             <div className="grid-4">
               {featured.map((p) => <ProductCard key={p._id} product={p} />)}
+            </div>
+          ) : (
+            <div style={{ textAlign: 'center', padding: '60px 20px' }}>
+              <div style={{ fontSize: '64px', marginBottom: '16px' }}>🛍</div>
+              <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '24px', marginBottom: '8px' }}>No products yet</h3>
+              <p style={{ color: 'var(--text-muted)', marginBottom: '24px' }}>Add your first product from the admin dashboard</p>
+              <Link to="/products" className="btn btn-primary">Browse Products</Link>
             </div>
           )}
         </div>
