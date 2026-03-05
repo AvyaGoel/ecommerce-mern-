@@ -1,60 +1,72 @@
 import axios from 'axios';
 
+const baseURL = process.env.ecommerce-mern-production-d024.up.railway.app
+  ? process.env.ecommerce-mern-production-d024.up.railway.app + '/api'
+  : '/api';
+
 const API = axios.create({
-  baseURL: processQueue.env.ecommerce-mern-production-d024.up.railway.app ? 
-  `${ecommerce-mern-production-d024.up.railway.app}`
-  : '/api',
+  baseURL: baseURL,
   withCredentials: true,
 });
 
-// Request interceptor - attach token
-API.interceptors.request.use((config) => {
-  const token = localStorage.getItem('accessToken');
-  if (token) config.headers.Authorization = `Bearer ${token}`;
+// Attach access token to every request
+API.interceptors.request.use(function(config) {
+  var token = localStorage.getItem('accessToken');
+  if (token) {
+    config.headers.Authorization = 'Bearer ' + token;
+  }
   return config;
 });
 
-let isRefreshing = false;
-let failedQueue = [];
+// Auto refresh token on 401
+var isRefreshing = false;
+var failedQueue = [];
 
-const processQueue = (error, token = null) => {
-  failedQueue.forEach((prom) => {
-    if (error) prom.reject(error);
-    else prom.resolve(token);
+function processQueue(error, token) {
+  failedQueue.forEach(function(prom) {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
   });
   failedQueue = [];
-};
+}
 
-// Response interceptor - refresh token on 401
 API.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    const originalRequest = error.config;
-    if (error.response?.status === 401 && !originalRequest._retry) {
+  function(response) {
+    return response;
+  },
+  function(error) {
+    var originalRequest = error.config;
+    if (error.response && error.response.status === 401 && !originalRequest._retry) {
       if (isRefreshing) {
-        return new Promise((resolve, reject) => {
-          failedQueue.push({ resolve, reject });
-        }).then((token) => {
-          originalRequest.headers.Authorization = `Bearer ${token}`;
+        return new Promise(function(resolve, reject) {
+          failedQueue.push({ resolve: resolve, reject: reject });
+        }).then(function(token) {
+          originalRequest.headers.Authorization = 'Bearer ' + token;
           return API(originalRequest);
         });
       }
       originalRequest._retry = true;
       isRefreshing = true;
-      try {
-        const { data } = await axios.post('/api/auth/refresh-token', {}, { withCredentials: true });
-        localStorage.setItem('accessToken', data.accessToken);
-        processQueue(null, data.accessToken);
-        originalRequest.headers.Authorization = `Bearer ${data.accessToken}`;
-        return API(originalRequest);
-      } catch (err) {
-        processQueue(err, null);
-        localStorage.removeItem('accessToken');
-        window.location.href = '/login';
-        return Promise.reject(err);
-      } finally {
-        isRefreshing = false;
-      }
+      return axios.post('/api/auth/refresh-token', {}, { withCredentials: true })
+        .then(function(res) {
+          var newToken = res.data.accessToken;
+          localStorage.setItem('accessToken', newToken);
+          processQueue(null, newToken);
+          originalRequest.headers.Authorization = 'Bearer ' + newToken;
+          return API(originalRequest);
+        })
+        .catch(function(err) {
+          processQueue(err, null);
+          localStorage.removeItem('accessToken');
+          window.location.href = '/login';
+          return Promise.reject(err);
+        })
+        .finally(function() {
+          isRefreshing = false;
+        });
     }
     return Promise.reject(error);
   }
@@ -62,65 +74,65 @@ API.interceptors.response.use(
 
 export default API;
 
-// Auth
-export const authAPI = {
-  register: (data) => API.post('/auth/register', data),
-  login: (data) => API.post('/auth/login', data),
-  logout: () => API.post('/auth/logout'),
-  getMe: () => API.get('/auth/me'),
-  forgotPassword: (email) => API.post('/auth/forgot-password', { email }),
-  resetPassword: (token, password) => API.put(`/auth/reset-password/${token}`, { password }),
+// Auth API
+export var authAPI = {
+  register: function(data) { return API.post('/auth/register', data); },
+  login: function(data) { return API.post('/auth/login', data); },
+  logout: function() { return API.post('/auth/logout'); },
+  getMe: function() { return API.get('/auth/me'); },
+  forgotPassword: function(email) { return API.post('/auth/forgot-password', { email: email }); },
+  resetPassword: function(token, password) { return API.put('/auth/reset-password/' + token, { password: password }); },
 };
 
-// Products
-export const productAPI = {
-  getAll: (params) => API.get('/products', { params }),
-  getOne: (id) => API.get(`/products/${id}`),
-  getCategories: () => API.get('/products/categories'),
-  create: (data) => API.post('/products', data, { headers: { 'Content-Type': 'multipart/form-data' } }),
-  update: (id, data) => API.put(`/products/${id}`, data, { headers: { 'Content-Type': 'multipart/form-data' } }),
-  delete: (id) => API.delete(`/products/${id}`),
-  review: (id, data) => API.post(`/products/${id}/review`, data),
-  getLowStock: () => API.get('/products/low-stock'),
+// Product API
+export var productAPI = {
+  getAll: function(params) { return API.get('/products', { params: params }); },
+  getOne: function(id) { return API.get('/products/' + id); },
+  getCategories: function() { return API.get('/products/categories'); },
+  create: function(data) { return API.post('/products', data, { headers: { 'Content-Type': 'multipart/form-data' } }); },
+  update: function(id, data) { return API.put('/products/' + id, data, { headers: { 'Content-Type': 'multipart/form-data' } }); },
+  delete: function(id) { return API.delete('/products/' + id); },
+  review: function(id, data) { return API.post('/products/' + id + '/review', data); },
+  getLowStock: function() { return API.get('/products/low-stock'); },
 };
 
-// Cart
-export const cartAPI = {
-  get: () => API.get('/cart'),
-  add: (productId, quantity) => API.post('/cart/add', { productId, quantity }),
-  update: (productId, quantity) => API.put(`/cart/item/${productId}`, { quantity }),
-  remove: (productId) => API.delete(`/cart/item/${productId}`),
-  clear: () => API.delete('/cart/clear'),
+// Cart API
+export var cartAPI = {
+  get: function() { return API.get('/cart'); },
+  add: function(productId, quantity) { return API.post('/cart/add', { productId: productId, quantity: quantity }); },
+  update: function(productId, quantity) { return API.put('/cart/item/' + productId, { quantity: quantity }); },
+  remove: function(productId) { return API.delete('/cart/item/' + productId); },
+  clear: function() { return API.delete('/cart/clear'); },
 };
 
-// Orders
-export const orderAPI = {
-  create: (data) => API.post('/orders', data),
-  getMyOrders: () => API.get('/orders/my-orders'),
-  getOne: (id) => API.get(`/orders/${id}`),
-  getAll: (params) => API.get('/orders', { params }),
-  updateStatus: (id, status, note) => API.put(`/orders/${id}/status`, { status, note }),
+// Order API
+export var orderAPI = {
+  create: function(data) { return API.post('/orders', data); },
+  getMyOrders: function() { return API.get('/orders/my-orders'); },
+  getOne: function(id) { return API.get('/orders/' + id); },
+  getAll: function(params) { return API.get('/orders', { params: params }); },
+  updateStatus: function(id, status, note) { return API.put('/orders/' + id + '/status', { status: status, note: note }); },
 };
 
-// Payment
-export const paymentAPI = {
-  createRazorpayOrder: (orderId) => API.post('/payment/create-order', { orderId }),
-  verifyPayment: (data) => API.post('/payment/verify', data),
-  getKey: () => API.get('/payment/razorpay-key'),
+// Payment API
+export var paymentAPI = {
+  createRazorpayOrder: function(orderId) { return API.post('/payment/create-order', { orderId: orderId }); },
+  verifyPayment: function(data) { return API.post('/payment/verify', data); },
+  getKey: function() { return API.get('/payment/razorpay-key'); },
 };
 
-// Admin
-export const adminAPI = {
-  getDashboard: () => API.get('/admin/dashboard'),
-  getUsers: (params) => API.get('/admin/users', { params }),
-  updateUserRole: (id, role) => API.put(`/admin/users/${id}/role`, { role }),
-  toggleUserStatus: (id) => API.put(`/admin/users/${id}/toggle-status`),
+// Admin API
+export var adminAPI = {
+  getDashboard: function() { return API.get('/admin/dashboard'); },
+  getUsers: function(params) { return API.get('/admin/users', { params: params }); },
+  updateUserRole: function(id, role) { return API.put('/admin/users/' + id + '/role', { role: role }); },
+  toggleUserStatus: function(id) { return API.put('/admin/users/' + id + '/toggle-status'); },
 };
 
-// User
-export const userAPI = {
-  updateProfile: (data) => API.put('/user/profile', data),
-  changePassword: (data) => API.put('/user/change-password', data),
-  addAddress: (data) => API.post('/user/addresses', data),
-  deleteAddress: (id) => API.delete(`/user/addresses/${id}`),
+// User API
+export var userAPI = {
+  updateProfile: function(data) { return API.put('/user/profile', data); },
+  changePassword: function(data) { return API.put('/user/change-password', data); },
+  addAddress: function(data) { return API.post('/user/addresses', data); },
+  deleteAddress: function(id) { return API.delete('/user/addresses/' + id); },
 };
