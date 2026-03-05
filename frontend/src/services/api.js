@@ -1,7 +1,9 @@
 import axios from 'axios';
 
 const API = axios.create({
-  baseURL: '/api',
+  baseURL: processQueue.env.ecommerce-mern-production-d024.up.railway.app ? 
+  `${ecommerce-mern-production-d024.up.railway.app}`
+  : '/api',
   withCredentials: true,
 });
 
