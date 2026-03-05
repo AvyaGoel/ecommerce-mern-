@@ -1,8 +1,6 @@
 import axios from 'axios';
 
-const baseURL = process.env.ecommerce-mern-production-d024.up.railway.app
-  ? process.env.ecommerce-mern-production-d024.up.railway.app + '/api'
-  : '/api';
+const baseURL='/api';
 
 const API = axios.create({
   baseURL: baseURL,
